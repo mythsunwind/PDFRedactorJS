@@ -79,7 +79,7 @@ canvas {
       <button id="pdf-next" class="btn btn-dark"><i class="bi bi-arrow-right"></i> Next Page</button>
     </div>
     <div class="col">
-      <button id="download-image" class="btn btn-primary" disabled><i class="bi bi-file-earmark-arrow-down"></i> Download PDF</button>
+      <button id="download-image" class="btn btn-primary"><i class="bi bi-file-earmark-arrow-down"></i> Download PDF</button>
     </div>
   </div>
 </div>
@@ -120,12 +120,6 @@ canvas {
       buff.push(storedRects.pop());
     }
   };
-
-  function allowDownloadWhenAllPagesViewed() {
-    if (__CURRENT_PAGE === __TOTAL_PAGES) {
-      $("#download-image").attr("disabled", false);
-    }
-  }
 
   function preloadAllPages() {
     allPages = [];
@@ -176,7 +170,6 @@ canvas {
       cleanCanvas();
       showPage(++__CURRENT_PAGE, true);
     }
-    allowDownloadWhenAllPagesViewed();
   });
   // Download button
   $("#download-image").on('click', function () {
@@ -209,7 +202,6 @@ canvas {
       // Show the first page
       showPage(1, false);
       preloadAllPages();
-      allowDownloadWhenAllPagesViewed();
     }).catch(function (error) {
       // If error re-show the upload button
       alert(error.message);
