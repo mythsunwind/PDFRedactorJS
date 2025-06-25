@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=no">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.1.266/pdf.min.js"></script>
-    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <style type="text/css">
@@ -44,39 +42,86 @@ canvas {
   color: #999999;
   font-size: 13px;
 }
+
+.hidden {
+  display: none;
+}
+
+.uploader {
+  display: block;
+  clear: both;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 600px;
+
+  label {
+    float: left;
+    clear: both;
+    width: 100%;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: #fff;
+    border-radius: 7px;
+    border: 3px solid #eee;
+    transition: all .2s ease;
+    user-select: none;
+  }
+
+  #messages {
+    border-radius: 7px;
+    background: #ced4da;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
     </style>
 </head>
 
 <body>
 <h2 style="text-align:center;">PDF Redactor JS</h2>
 
-<div class="container text-center">
+<div id="response" class="container bg-light text-center rounded p-4 my-3 hidden">
   <div class="row">
-    <div class="dropzone" id="dZUpload">
-      <div class="dz-wrapper dz-multiple">
-        <div class="dz-message">
-          <div class="dz-text">Click Here to Upload a File <br> Only ONE PDF File is Allowed</div>
-        </div>
-      </div>
+    <div class="col">
+      <strong id="messages"></strong>
+      <button type="button" class="btn btn-outline-primary" aria-label="Close" onclick="window.location.reload();"><i class="bi bi-x"></i></button>
     </div>
   </div>
 </div>
-<div class="container text-center">
+
+<div id="upload-container" class="container text-center">
+  <div class="row">
+    <form id="file-upload-form" class="uploader">
+      <input id="file-upload" type="file" name="fileUpload" accept="application/pdf" />
+
+      <label for="file-upload" id="file-drag">
+        <div id="start">
+          <i class="fa fa-download" aria-hidden="true"></i>
+          <div>Select a file or drag here</div>
+          <span id="file-upload-btn" class="btn btn-primary">Select a file</span>
+        </div>
+      </label>
+    </form>
+  </div>
+</div>
+
+<div id="controls-container" class="container text-center hidden">
   <div class="row justify-content-md-center">
     <div class="col">
-      <button id="pdf-undo" class="btn btn-light" onclick="undoAction()"><i class="bi bi-arrow-counterclockwise"></i> Undo</button>
+      <div class="btn-group" role="group">
+        <button id="pdf-undo" class="btn btn-outline-primary" onclick="undoAction()"><i class="bi bi-arrow-counterclockwise"></i> Undo</button>
+        <button id="pdf-redo" class="btn btn-outline-primary" ><i class="bi bi-arrow-clockwise"></i> Redo</button>
+      </div>
     </div>
     <div class="col">
-      <button id="pdf-redo" class="btn btn-light" ><i class="bi bi-arrow-clockwise"></i> Redo</button>
-    </div>
-    <div class="col">
-      <button id="pdf-prev" class="btn btn-dark"><i class="bi bi-arrow-left"></i> Previous Page</button>
+      <button id="pdf-prev" class="btn btn-dark"><i class="bi bi-arrow-left"></i></button>
     </div>
     <div class="col">
       <span id="page-count-container">Page <span id="pdf-current-page"></span> of <span id="pdf-total-pages"></span></span>
     </div>
     <div class="col">
-      <button id="pdf-next" class="btn btn-dark"><i class="bi bi-arrow-right"></i> Next Page</button>
+      <button id="pdf-next" class="btn btn-dark"><i class="bi bi-arrow-right"></i></button>
     </div>
     <div class="col">
       <button id="download-image" class="btn btn-primary"><i class="bi bi-file-earmark-arrow-down"></i> Download PDF</button>
@@ -96,6 +141,48 @@ canvas {
         integrity="sha384-NaWTHo/8YCBYJ59830LTz/P4aQZK1sS0SneOgAvhsIl3zBu8r9RevNg5lHCHAuQ/"
         crossorigin="anonymous"></script>
 <script>
+  console.log("Upload Initialised");
+
+  var fileSelect    = document.getElementById('file-upload'),
+      fileDrag      = document.getElementById('file-drag'),
+      submitButton  = document.getElementById('submit-button');
+
+  fileSelect.addEventListener('change', fileSelectHandler, false);
+
+  // Is XHR2 available?
+  var xhr = new XMLHttpRequest();
+  if (xhr.upload) {
+    // File Drop
+    fileDrag.addEventListener('dragover', fileDragHover, false);
+    fileDrag.addEventListener('dragleave', fileDragHover, false);
+    fileDrag.addEventListener('drop', fileSelectHandler, false);
+  }
+
+  function fileDragHover(e) {
+    var fileDrag = document.getElementById('file-drag');
+
+    e.stopPropagation();
+    e.preventDefault();
+
+    fileDrag.className = (e.type === 'dragover' ? 'hover' : 'modal-body file-upload');
+  }
+
+  function fileSelectHandler(e) {
+    // Fetch FileList object
+    var files = e.target.files || e.dataTransfer.files;
+
+    // Cancel event and hover styling
+    fileDragHover(e);
+
+    // Process File object
+    file = files[0]
+    document.getElementById('messages').innerHTML = encodeURI(file.name);
+    document.getElementById('response').classList.remove("hidden");
+    document.getElementById('upload-container').classList.add("hidden");
+    document.getElementById('controls-container').classList.remove("hidden");
+    showPDF(URL.createObjectURL(file));
+  }
+
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@2.1.266/build/pdf.worker.min.js";
 
   var __PDF_DOC,
@@ -269,42 +356,6 @@ canvas {
   $(document).ready(function selection() {
     "use strict";
     hideCanvas();
-    Dropzone.autoDiscover = false;
-    $("#dZUpload").dropzone({
-      url: "upload_holder",
-      addRemoveLinks: true,
-      acceptedFiles: ".pdf",
-      maxFiles:1,
-      success: function (file, response) {
-        console.log(response);
-      },
-      error: function (file, response) {
-        console.log(response);
-      },
-      init:function(){
-        this.on("maxfilesexceeded", function(file){
-          alert("No more files please!");
-          this.removeFile(file);
-        });
-        this.on('addedfile',function(file){
-          $("#pdf-loader").show();
-          if ('application/pdf' != file.type) {
-            alert('Error : Not a PDF');
-            this.removeFile(file);
-          }
-          else
-            showPDF(URL.createObjectURL(this.files[0]));
-        });
-        this.on("removedfile", function(file) {
-	  if ('application/pdf' == file.type) {
-		allPages = [];
-		cleanCanvas();
-		hideCanvas();
-	  }
-        });
-      }
-    });
-
     requestAnimationFrame(mainLoop);
     const canvas = document.getElementById("pdf-canvas");
     const ctx = canvas.getContext("2d");
