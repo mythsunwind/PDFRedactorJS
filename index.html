@@ -278,7 +278,8 @@ canvas {
         pdf.addPage();  // this adds a new page
       }
     }
-    pdf.save("download.pdf");
+    let filename = document.getElementById('messages').innerHTML.replace('.pdf', '-redacted.pdf')
+    pdf.save(filename);
   });
 
   function showPDF(pdf_url) {
